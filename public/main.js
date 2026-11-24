@@ -97,7 +97,9 @@ async function api(path, method = "GET", body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const result = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(result?.error || "Не вдалося зберегти колоду.");
+    const result = response.status === 204 ? null : await response.json().catch(() => null);
+  if (!response.ok || (result === null && response.status !== 204))
+    throw new Error(result?.error || "Сервер тимчасово недоступний. Спробуй за хвилину.");
   return result;
 }
 async function loadDecks() {
