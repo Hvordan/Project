@@ -1,4 +1,4 @@
-import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor } from "./ui.js"; // добавил aiDeckEditor
+import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor } from "./ui.js"; // добавил aideckeditor
 import { lobbyPage, gamePage } from "./room.js";
 
 const app = $("#app"),
@@ -90,14 +90,14 @@ function emit(event, data) {
   );
 }
 const act = (data) => emit("action", { turnId: room?.turn?.id, ...data });
+
 async function api(path, method = "GET", body) {
   const response = await fetch("/api/decks" + path, {
     method,
     headers: { "X-Deck-Key": key, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const result = response.status === 204 ? null : await response.json();
-    const result = response.status === 204 ? null : await response.json().catch(() => null);
+  const result = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok || (result === null && response.status !== 204))
     throw new Error(result?.error || "Сервер тимчасово недоступний. Спробуй за хвилину.");
   return result;
@@ -251,7 +251,7 @@ document.addEventListener("click", async (e) => {
       return closeModal();
     }
     if ("deckNew" in d) return showEditor(null);
-    if ("deckAi" in d) return modal(aiDeckEditor()); // открытие окна 
+    if ("deckAi" in d) return modal(aiDeckEditor()); // ДОДАНО: відкрити вікно «Колода за допомогою ШІ»
     if (d.deckEdit) return showEditor(decks.find((x) => x.id === d.deckEdit));
     if (d.deckView) {
       const deck = decks.find((x) => x.id === d.deckView);
@@ -325,7 +325,7 @@ document.addEventListener("submit", async (e) => {
         notify("Колоду збережено.");
         break;
       }
-      // добавил создание колоды ии 
+      // создание колоды через иишку 
       case "ai-deck-form": {
         notify("Створюємо колоду, це може тривати кілька секунд…");
         await api("/generate", "POST", { theme: values.theme });
