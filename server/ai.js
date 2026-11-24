@@ -13,7 +13,7 @@ export async function generateDeck(theme) {
 
   const res = await fetch(url, {
     method: "POST",
-    signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(60000), //увеличил таймаут
     headers: {
       "x-goog-api-key": apiKey,
       "content-type": "application/json",
@@ -35,9 +35,9 @@ export async function generateDeck(theme) {
           ],
         },
       ],
-      generationConfig: {
-        maxOutputTokens: 4000,
-        thinkingConfig: { thinkingBudget: 0 },
+            generationConfig: {
+        maxOutputTokens: 8000,
+        thinkingConfig: { thinkingLevel: "low" }, //выделил токены и изменил время на размышления 
         responseMimeType: "application/json",
         responseSchema: {
           type: "OBJECT",
