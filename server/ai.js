@@ -1,4 +1,4 @@
-// server/ai.js
+// server/ai.js — генерация колоды с помощью gemini
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const WORDS_PER_DECK = 48;
 
@@ -72,11 +72,11 @@ export async function generateDeck(theme) {
     const word = String(item.word || "").trim();
     const icon = String(item.icon || "").trim();
     const key = word.toLowerCase();
-    if (!word || !icon || /[\s|]/u.test(word) || seen.has(key)) continue;
+    if (!word || !icon || word.length > 28 || /[\s|]/u.test(word) || seen.has(key)) continue;
     seen.add(key);
     words.push({ word, icon });
   }
-  if (words.length < WORDS_PER_DECK) throw new Error("Gemini повернув замало слів");
+  if (words.length < 30) throw new Error("Gemini повернув замало слів");
 
   return {
     id: "ai-" + Date.now().toString(36),
