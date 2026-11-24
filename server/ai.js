@@ -1,5 +1,12 @@
-// server/ai.js — генерация колоды с помощью gemini
-const MODEL = (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim().replace(/^models\//, "");
+// server/ai.js —генерация колоды с помощью гемини и так же должно автоматически менять модель 
+const clean = (name) => String(name).trim().replace(/^models\//, "");
+const MODELS = [
+  process.env.GEMINI_MODEL || "gemini-3.8-flash",
+  ...(process.env.GEMINI_FALLBACK_MODELS || "gemini-3.5-flash,gemini-3.1-flash-lite").split(","),
+]
+  .map(clean)
+  .filter((name, i, all) => name && all.indexOf(name) === i);
+const RETRY_STATUSES = [404, 429, 500, 503];
 const WORDS_PER_DECK = 48;
 
 export async function generateDeck(theme) {
@@ -9,61 +16,80 @@ export async function generateDeck(theme) {
   const topic = String(theme || "").trim().slice(0, 60);
   if (!topic) throw new Error("Порожня тема");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-
-  const res = await fetch(url, {
-    method: "POST",
-        signal: AbortSignal.timeout(60000), //увеличил таймаут
-    headers: {
-      "x-goog-api-key": apiKey,
-      "content-type": "application/json",
+  const body = JSON.stringify({
+    systemInstruction: {
+      parts: [{ text: "Ти створюєш колоди слів для гри. Відповідай лише JSON." }],
     },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: "Ти створюєш колоди слів для гри. Відповідай лише JSON." }],
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              `Тема: "${topic}". Дай рівно ${WORDS_PER_DECK} різних українських іменників ` +
+              `за цією темою. Кожне слово — одне слово без пробілів і без символу "|", ` +
+              `до нього один емодзі.`,
+          },
+        ],
       },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                `Тема: "${topic}". Дай рівно ${WORDS_PER_DECK} різних українських іменників ` +
-                `за цією темою. Кожне слово — одне слово без пробілів і без символу "|", ` +
-                `до нього один емодзі.`,
-            },
-          ],
-        },
-      ],
-            generationConfig: {
-        maxOutputTokens: 8000,
-        thinkingConfig: { thinkingLevel: "low" }, //выделил токены и изменил время на размышления 
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            title: { type: "STRING" },
-            description: { type: "STRING" },
-            words: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  word: { type: "STRING" },
-                  icon: { type: "STRING" },
-                },
-                required: ["word", "icon"],
+    ],
+    generationConfig: {
+      maxOutputTokens: 8000,
+      thinkingConfig: { thinkingLevel: "low" },
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          title: { type: "STRING" },
+          description: { type: "STRING" },
+          words: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                word: { type: "STRING" },
+                icon: { type: "STRING" },
               },
+              required: ["word", "icon"],
             },
           },
-          required: ["title", "description", "words"],
         },
+        required: ["title", "description", "words"],
       },
-    }),
+    },
   });
 
-    if (!res.ok) throw new Error("Gemini повернув " + res.status + ": " + (await res.text()).slice(0, 300));
-  const data = await res.json();
+  let data;
+  let lastError;
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(35000),
+          headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
+          body,
+        },
+      );
+      if (res.ok) {
+        data = await res.json();
+        break;
+      }
+      lastError = new Error(
+        `${model}: Gemini повернув ${res.status}: ${(await res.text()).slice(0, 300)}`,
+      );
+      if (!RETRY_STATUSES.includes(res.status)) throw lastError;
+    } catch (err) {
+      lastError = err;
+      if (err.name !== "TimeoutError" && err.name !== "AbortError" && !String(err.message).includes("Gemini повернув")) {
+        throw err;
+      }
+      console.error("Генерація колоди, пробуємо іншу модель:", err.message);
+    }
+  }
+  if (!data) throw lastError || new Error("Жодна модель не відповіла");
+
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
   const parsed = JSON.parse(text);
 
