@@ -1,5 +1,5 @@
 // server/ai.js — генерация колоды с помощью gemini
-const MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim().replace(/^models\//, "");
+const MODEL = (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim().replace(/^models\//, "");
 const WORDS_PER_DECK = 48;
 
 export async function generateDeck(theme) {
