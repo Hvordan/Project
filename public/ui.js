@@ -114,10 +114,15 @@ export function rulesPage() {
     )
     .join("")}</div>`;
 }
+// кнопка создать колоду иишкой (data-deck-ai)
 export function decksPage(decks) {
-  return `<div class="page-head split"><div><h1>Колоди</h1><p>Обери набір слів для наступної партії або напиши власний.</p></div><button class="primary" data-deck-new>Створити колоду</button></div>
+  return `<div class="page-head split"><div><h1>Колоди</h1><p>Обери набір слів для наступної партії або напиши власний.</p></div><div class="row"><button class="secondary" data-deck-ai>Створити через ШІ</button><button class="primary" data-deck-new>Створити колоду</button></div></div>
   <div class="deck-grid">${decks.map((d, i) => `<article class="panel deck"><div class="deck-cover tone-${i % 3}"><span>${["✦", "❀", "☾"][i % 3]}</span></div><div class="deck-body"><small>${d.custom ? "Твоя колода" : "Колода Еквестрії"} · ${d.words.length} карток</small><h2>${esc(d.title)}</h2><p>${esc(d.description)}</p><button class="secondary" data-deck-view="${esc(d.id)}">Переглянути слова</button>${d.custom ? ` <button class="text-btn" data-deck-edit="${esc(d.id)}">Редагувати</button>` : ""}</div></article>`).join("")}</div>`;
 }
 export function deckEditor(d) {
   return `<h2>${d ? "Редагувати колоду" : "Нова колода"}</h2><form id="deck-form" data-id="${esc(d?.id)}"><label>Назва колоди<input name="title" maxlength="45" required value="${esc(d?.title)}"></label><label>Слова, по одному на рядок<textarea name="words" rows="10" required placeholder="Місяць&#10;Кристал&#10;Веселка">${esc(d?.words.map((x) => x.word).join("\n"))}</textarea></label><small id="word-count"></small><p class="note">Від 25 до 160 різних слів. Колодою керує автор у цьому браузері.</p><div class="row"><button class="primary">Зберегти</button>${d ? `<button type="button" class="text-btn danger" data-deck-delete="${esc(d.id)}">Видалити</button>` : ""}</div></form>`;
+}
+// создание колоди иишкой
+export function aiDeckEditor() {
+  return `<h2>Колода за допомогою ШІ</h2><form id="ai-deck-form"><label>Тема<input name="theme" maxlength="60" required placeholder="Наприклад, море"></label><p class="note">Створення займає кілька секунд. Не частіше, ніж раз на 30 секунд.</p><button class="primary full">Створити</button></form>`;
 }
