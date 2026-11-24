@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { builtins } from "./decks.js";
 import { openStore } from "./store.js";
+import { generateDeck } from "./ai.js"; // генерация колод
 import {
   applyAction,
   backToLobby,
@@ -32,12 +33,33 @@ export function createGameServer(filename) {
   const io = new Server(http, { maxHttpBufferSize: 16_384 });
   const store = openStore(filename);
   const members = new Map(); // Room code → player id → currently connected socket.
+  const lastGenerated = new Map(); // ДОДАНО: хеш браузера → час останньої генерації колоди
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
   app.get("/api/decks", (req, res) => res.json(store.decks(ownerHash(req.get("X-Deck-Key")))));
   app.post("/api/decks", (req, res) =>
     res.status(201).json(store.writeDeck(null, ownerHash(req.get("X-Deck-Key")), req.body || {})),
   );
+  // ДОДАНО: створення колоди за темою через ШІ
+  app.post("/api/decks/generate", async (req, res, next) => {
+    try {
+      const owner = ownerHash(req.get("X-Deck-Key"));
+      const theme = shortText(req.body?.theme, 60, "Введи тему від 1 до 60 символів.");
+      const last = lastGenerated.get(owner) || 0;
+      requireRule(Date.now() - last > 30_000, "Зачекай пів хвилини перед наступною генерацією.");
+      lastGenerated.set(owner, Date.now());
+      let deck;
+      try {
+        deck = await generateDeck(theme);
+      } catch (err) {
+        console.error("Генерація колоди:", err.message);
+        throw new Error("Не вдалося створити колоду. Спробуй іншу тему або пізніше.");
+      }
+      res.status(201).json(store.writeDeck(null, owner, deck));
+    } catch (err) {
+      next(err);
+    }
+  });
   app.put("/api/decks/:id", (req, res) =>
     res.json(store.writeDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body || {})),
   );
