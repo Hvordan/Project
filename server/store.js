@@ -48,15 +48,28 @@ export function openStore(filename) {
         Array.isArray(body.words) && body.words.length >= 25 && body.words.length <= 160,
         "Потрібно від 25 до 160 різних слів.",
       );
+      // слово может быть рядком 
       const words = body.words.map((w) => ({
-        word: shortText(w, 28, "Кожна картка має містити від 1 до 28 символів."),
-        icon: "✧",
+        word: shortText(
+          typeof w === "string" ? w : w?.word,
+          28,
+          "Кожна картка має містити від 1 до 28 символів.",
+        ),
+        icon:
+          typeof w?.icon === "string" && w.icon.trim() && w.icon.length <= 8
+            ? w.icon.trim()
+            : "✧",
       }));
       requireRule(
         new Set(words.map((w) => normalize(w.word))).size === words.length,
         "Прибери повтори в колоді.",
       );
-      const deck = { id: id || randomUUID(), title, description: "Авторська колода", words };
+      
+      const description =
+        typeof body.description === "string" && body.description.trim()
+          ? body.description.trim().slice(0, 120)
+          : "Авторська колода";
+      const deck = { id: id || randomUUID(), title, description, words };
       if (id) {
         const result = db
           .prepare("UPDATE decks SET state=? WHERE id=? AND owner=?")
