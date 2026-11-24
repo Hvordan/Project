@@ -1,5 +1,5 @@
 // server/ai.js — генерация колоды с помощью gemini
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim().replace(/^models\//, "");
 const WORDS_PER_DECK = 48;
 
 export async function generateDeck(theme) {
@@ -62,7 +62,7 @@ export async function generateDeck(theme) {
     }),
   });
 
-  if (!res.ok) throw new Error("Gemini повернув " + res.status);
+    if (!res.ok) throw new Error("Gemini повернув " + res.status + ": " + (await res.text()).slice(0, 300));
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
   const parsed = JSON.parse(text);
