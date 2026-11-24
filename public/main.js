@@ -1,4 +1,4 @@
-import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor } from "./ui.js";
+import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor } from "./ui.js"; // добавил aiDeckEditor
 import { lobbyPage, gamePage } from "./room.js";
 
 const app = $("#app"),
@@ -249,6 +249,7 @@ document.addEventListener("click", async (e) => {
       return closeModal();
     }
     if ("deckNew" in d) return showEditor(null);
+    if ("deckAi" in d) return modal(aiDeckEditor()); // открытие окна 
     if (d.deckEdit) return showEditor(decks.find((x) => x.id === d.deckEdit));
     if (d.deckView) {
       const deck = decks.find((x) => x.id === d.deckView);
@@ -320,6 +321,15 @@ document.addEventListener("submit", async (e) => {
         await loadDecks();
         closeModal();
         notify("Колоду збережено.");
+        break;
+      }
+      // добавил создание колоды ии 
+      case "ai-deck-form": {
+        notify("Створюємо колоду, це може тривати кілька секунд…");
+        await api("/generate", "POST", { theme: values.theme });
+        await loadDecks();
+        closeModal();
+        notify("Колоду створено. Вона з’явилася в списку.");
         break;
       }
     }
