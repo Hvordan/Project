@@ -37,6 +37,7 @@ export async function generateDeck(theme) {
       ],
       generationConfig: {
         maxOutputTokens: 4000,
+        thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: "application/json",
         responseSchema: {
           type: "OBJECT",
