@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { builtins } from "./decks.js";
 import { openStore } from "./store.js";
-import { generateDeck } from "./ai.js"; // ии колоды 
+import { generateDeck } from "./ai.js"; 
 import {
   applyAction,
   backToLobby,
@@ -33,15 +33,23 @@ export function createGameServer(filename) {
   const http = createServer(app);
   const io = new Server(http, { maxHttpBufferSize: 16_384 });
   const store = openStore(filename);
+  // "востановление" колод 
+  const ready = store
+    .restore()
+    .then((info) => {
+      if (info) console.log("Колоди з Turso: відновлено " + info.restored + ", вивантажено " + info.uploaded);
+    })
+    .catch((err) => console.error("Відновлення колод із Turso:", err.message));
+ 
   const members = new Map(); // Room code → player id → currently connected socket.
-  const lastGenerated = new Map(); // время генерации 
+  const lastGenerated = new Map(); // хеш браузера + время генирации 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
   app.get("/api/decks", (req, res) => res.json(store.decks(ownerHash(req.get("X-Deck-Key")))));
   app.post("/api/decks", (req, res) =>
     res.status(201).json(store.writeDeck(null, ownerHash(req.get("X-Deck-Key")), req.body || {})),
   );
-  // создание тематических колод через ии
+  // создание колоды по тепе иишкой
   app.post("/api/decks/generate", async (req, res, next) => {
     try {
       const owner = ownerHash(req.get("X-Deck-Key"));
@@ -61,13 +69,21 @@ export function createGameServer(filename) {
       next(err);
     }
   });
-  
-  // зашерить колоду со всеми 
+
+  // поделиться колодой со всеми
   app.post("/api/decks/:id/share", (req, res) => {
     store.shareDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body?.shared);
     res.sendStatus(204);
   });
- 
+  //
+  // библиотека колод других людей
+  app.get("/api/decks/library", (req, res) =>
+    res.json(store.library(ownerHash(req.get("X-Deck-Key")), req.query.q)),
+  );
+  app.post("/api/decks/library/:id/save", (req, res) =>
+    res.status(201).json(store.saveFromLibrary(req.params.id, ownerHash(req.get("X-Deck-Key")))),
+  );
+
   app.put("/api/decks/:id", (req, res) =>
     res.json(store.writeDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body || {})),
   );
@@ -213,10 +229,12 @@ export function createGameServer(filename) {
   clock.unref();
   return {
     http,
+    ready, 
     close() {
       clearInterval(clock);
       return new Promise((resolve) =>
-        io.close(() => {
+        io.close(async () => {
+          await store.flush(); // ожидаение сохранений колод
           store.close();
           resolve();
         }),
