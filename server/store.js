@@ -151,5 +151,4 @@ export function openStore(filename) {
       for (const r of rows) put.run(r.id, r.owner, r.state);
     },
   };
-}
-}
+
