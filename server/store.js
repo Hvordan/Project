@@ -193,7 +193,7 @@ export function openStore(filename) {
         const { n } = db.prepare("SELECT COUNT(*) AS n FROM decks WHERE owner=?").get(owner);
         requireRule(Number(n) < MAX_OWN_DECKS, "Можна мати не більше " + MAX_OWN_DECKS + " колод.");
       }
-      /
+      
       
       const deck = {
         id: id || randomUUID(),
