@@ -207,7 +207,7 @@ export async function generateDeck(theme) {
     id: "ai-" + Date.now().toString(36),
     title: String(parsed.title || topic).slice(0, 40),
     description: String(parsed.description || "").slice(0, 120),
-    cover, // перевіряється в store.js
+    cover, 
     words: words.slice(0, WORDS_PER_DECK),
   };
 }
