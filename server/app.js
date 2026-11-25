@@ -1,3 +1,4 @@
+
 import express from "express";
 import { createServer } from "node:http";
 import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
@@ -5,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { builtins } from "./decks.js";
 import { openStore } from "./store.js";
-import { generateDeck } from "./ai.js"; // генерация колод
+import { generateDeck } from "./ai.js"; // ии колоды 
 import {
   applyAction,
   backToLobby,
@@ -33,14 +34,14 @@ export function createGameServer(filename) {
   const io = new Server(http, { maxHttpBufferSize: 16_384 });
   const store = openStore(filename);
   const members = new Map(); // Room code → player id → currently connected socket.
-  const lastGenerated = new Map(); // ДОДАНО: хеш браузера → час останньої генерації колоди
+  const lastGenerated = new Map(); // время генерации 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
   app.get("/api/decks", (req, res) => res.json(store.decks(ownerHash(req.get("X-Deck-Key")))));
   app.post("/api/decks", (req, res) =>
     res.status(201).json(store.writeDeck(null, ownerHash(req.get("X-Deck-Key")), req.body || {})),
   );
-  // ДОДАНО: створення колоди за темою через ШІ
+  // создание тематических колод через ии
   app.post("/api/decks/generate", async (req, res, next) => {
     try {
       const owner = ownerHash(req.get("X-Deck-Key"));
@@ -60,6 +61,13 @@ export function createGameServer(filename) {
       next(err);
     }
   });
+  
+  // зашерить колоду со всеми 
+  app.post("/api/decks/:id/share", (req, res) => {
+    store.shareDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body?.shared);
+    res.sendStatus(204);
+  });
+ 
   app.put("/api/decks/:id", (req, res) =>
     res.json(store.writeDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body || {})),
   );
