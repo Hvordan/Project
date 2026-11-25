@@ -14,6 +14,7 @@ const argValue = (flag) => {
 const port = Number(argValue("--port") || process.env.PORT || 3000);
 const host = argValue("--host") || "0.0.0.0";
 const game = createGameServer(filename);
+await game.ready; 
 game.http.listen(port, host, () => {
   console.log("Таємні знаки Еквестрії — http://localhost:" + port);
   if (host !== "0.0.0.0") return;
@@ -22,7 +23,7 @@ game.http.listen(port, host, () => {
     interfaces = networkInterfaces();
   } catch {
     return;
-  } // Some managed hosts cannot enumerate local network interfaces.
+  } 
   for (const list of Object.values(interfaces)) {
     for (const net of list || []) {
       if (net.family === "IPv4" && !net.internal)
