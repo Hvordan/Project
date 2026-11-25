@@ -6,17 +6,41 @@ const MODELS = [
 ]
   .map(clean)
   .filter((name, i, all) => name && all.indexOf(name) === i);
-const RETRY_STATUSES = [404, 429, 500, 503];
 const WORDS_PER_DECK = 48;
 
-export async function generateDeck(theme) {
+
+async function callGemini(payload, { timeout = 35000 } = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY не задано");
+  const body = JSON.stringify(payload);
+  let lastError;
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(timeout),
+          headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
+          body,
+        },
+      );
+      if (!res.ok) {
+        throw new Error(`Gemini повернув ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      }
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+      return JSON.parse(text);
+    } catch (err) {
+      lastError = new Error(`${model}: ${err.message}`);
+      console.error("Генерація, пробуємо іншу модель:", lastError.message);
+    }
+  }
+  throw lastError || new Error("Жодна модель не відповіла");
+}
 
-  const topic = String(theme || "").trim().slice(0, 60);
-  if (!topic) throw new Error("Порожня тема");
-
-  const body = JSON.stringify({
+function wordsPayload(topic) {
+  return {
     systemInstruction: {
       parts: [{ text: "Ти створюєш колоди слів для гри. Відповідай лише JSON." }],
     },
@@ -46,10 +70,7 @@ export async function generateDeck(theme) {
             type: "ARRAY",
             items: {
               type: "OBJECT",
-              properties: {
-                word: { type: "STRING" },
-                icon: { type: "STRING" },
-              },
+              properties: { word: { type: "STRING" }, icon: { type: "STRING" } },
               required: ["word", "icon"],
             },
           },
@@ -57,41 +78,83 @@ export async function generateDeck(theme) {
         required: ["title", "description", "words"],
       },
     },
-  });
+  };
+}
 
-  let data;
-  let lastError;
-  for (const model of MODELS) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          signal: AbortSignal.timeout(35000),
-          headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
-          body,
+function coverPayload(topic) {
+  return {
+    systemInstruction: {
+      parts: [{ text: "Ти художник-ілюстратор плоских іконок. Відповідай лише JSON." }],
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              `Тема гри: "${topic}". Обери ОДИН найвпізнаваніший символ цієї теми ` +
+              `(наприклад: Гаррі Поттер — шрам-блискавка або чарівна паличка; Elden Ring — розбите кільце; ` +
+              `море — хвиля) і намалюй його як просту плоску іконку.\n` +
+              `Правила: система координат 64x64, символ по центру і займає більшу частину поля; ` +
+              `від 1 до 4 фігур; кожна фігура — SVG path (атрибут d). ` +
+              `Команди лише M, L, H, V, C, Q, A, Z і числа. ` +
+              `Для кожної фігури вкажи stroke: false — суцільний силует, ` +
+              `або stroke: true — лінія завтовшки 4 (для кілець, дуг, паличок, блискавок). ` +
+              `Іконка має бути простою, впізнаваною, без дрібних деталей.\n` +
+              `Приклад формату (не копіюй, це лише формат): ` +
+              `{"symbol":"зірка","shapes":[{"d":"M32 6 L38 26 L58 32 L38 38 L32 58 L26 38 L6 32 L26 26 Z","stroke":false}]}`,
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      maxOutputTokens: 4000,
+      thinkingConfig: { thinkingLevel: "medium" },
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          symbol: { type: "STRING" },
+          shapes: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: { d: { type: "STRING" }, stroke: { type: "BOOLEAN" } },
+              required: ["d", "stroke"],
+            },
+          },
         },
-      );
-      if (res.ok) {
-        data = await res.json();
-        break;
-      }
-      lastError = new Error(
-        `${model}: Gemini повернув ${res.status}: ${(await res.text()).slice(0, 300)}`,
-      );
-      if (!RETRY_STATUSES.includes(res.status)) throw lastError;
-    } catch (err) {
-      lastError = err;
-      if (err.name !== "TimeoutError" && err.name !== "AbortError" && !String(err.message).includes("Gemini повернув")) {
-        throw err;
-      }
-      console.error("Генерація колоди, пробуємо іншу модель:", err.message);
-    }
-  }
-  if (!data) throw lastError || new Error("Жодна модель не відповіла");
+        required: ["symbol", "shapes"],
+      },
+    },
+  };
+}
 
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
-  const parsed = JSON.parse(text);
+// Обложка если не создалась то будет одна из трех базовых 
+function drawCover(topic) {
+  let timer;
+  const limit = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(undefined), 45000);
+  });
+  const draw = callGemini(coverPayload(topic), { timeout: 30000 })
+    .then((result) =>
+      (Array.isArray(result.shapes) ? result.shapes : [])
+        .slice(0, 4)
+        .map((s) => ({ d: String(s?.d || ""), s: s?.stroke === true })),
+    )
+    .catch((err) => {
+      console.error("Обкладинка колоди:", err.message);
+      return undefined;
+    });
+  return Promise.race([draw, limit]).finally(() => clearTimeout(timer));
+}
+
+export async function generateDeck(theme) {
+  const topic = String(theme || "").trim().slice(0, 60);
+  if (!topic) throw new Error("Порожня тема");
+
+  // Слова и обложка 
+  const [parsed, cover] = await Promise.all([callGemini(wordsPayload(topic)), drawCover(topic)]);
 
   const seen = new Set();
   const words = [];
@@ -109,6 +172,7 @@ export async function generateDeck(theme) {
     id: "ai-" + Date.now().toString(36),
     title: String(parsed.title || topic).slice(0, 40),
     description: String(parsed.description || "").slice(0, 120),
+    cover, // перевіряється в store.js
     words: words.slice(0, WORDS_PER_DECK),
   };
 }
