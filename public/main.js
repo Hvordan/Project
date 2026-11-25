@@ -48,6 +48,7 @@ function render() {
   document
     .querySelectorAll("nav [data-nav]")
     .forEach((b) => b.setAttribute("aria-current", b.dataset.nav === (page === "library" ? "decks" : page) ? "page" : "false")); 
+    if (page === "rules") app.innerHTML = rulesPage();
   else if (page === "decks") app.innerHTML = decksPage(decks);
   else if (page === "library") app.innerHTML = libraryPage(library, libraryQuery); 
   else if (!room) app.innerHTML = entryPage(mode, nick, code, online);
