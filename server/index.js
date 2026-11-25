@@ -1,4 +1,4 @@
-// ПОЗНАЧКИ ЗМІН: «ДОДАНО» — нове. Усе без позначок — ваш оригінальний код.
+
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { networkInterfaces } from "node:os";
