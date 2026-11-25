@@ -1,3 +1,4 @@
+// ПОЗНАЧКИ ЗМІН: «ДОДАНО» — нове. Усе без позначок — ваш оригінальний код.
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { networkInterfaces } from "node:os";
@@ -14,6 +15,7 @@ const argValue = (flag) => {
 const port = Number(argValue("--port") || process.env.PORT || 3000);
 const host = argValue("--host") || "0.0.0.0";
 const game = createGameServer(filename);
+await game.ready; // ждать востановление колод перед тем как пускать игрока
 game.http.listen(port, host, () => {
   console.log("Таємні знаки Еквестрії — http://localhost:" + port);
   if (host !== "0.0.0.0") return;
