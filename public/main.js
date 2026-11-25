@@ -1,5 +1,5 @@
-// ПОЗНАЧКИ ЗМІН: «ДОДАНО» — нове, «ЗМІНЕНО» — змінене (в дужках «було: …»). ▼/▲ обмежують доданий блок. Усе без позначок — ваш оригінальний код.
-import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor, libraryPage } from "./ui.js"; // ЗМІНЕНО: до імпорту додано aiDeckEditor і libraryPage (було без них)
+
+import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor, libraryPage } from "./ui.js"; // добавлено aiDeckEditor и libraryPage 
 import { lobbyPage, gamePage } from "./room.js";
 
 const app = $("#app"),
@@ -16,8 +16,8 @@ const savedName = "equestria.nickname",
   savedRoom = "equestria.room";
 let room = null,
   decks = [],
-  library = [], // ДОДАНО: колоди інших людей (бібліотека)
-  libraryQuery = "", // ДОДАНО: пошуковий запит у бібліотеці
+  library = [], // колоды других людей
+  libraryQuery = "", // поиск в библиотеке 
   page = "play",
   mode = "create",
   code = "",
@@ -47,10 +47,9 @@ function render() {
   renderedContext = context;
   document
     .querySelectorAll("nav [data-nav]")
-    .forEach((b) => b.setAttribute("aria-current", b.dataset.nav === (page === "library" ? "decks" : page) ? "page" : "false")); // ЗМІНЕНО: на сторінці бібліотеки підсвічується «Колоди» (було: b.dataset.nav === page)
-  if (page === "rules") app.innerHTML = rulesPage();
+    .forEach((b) => b.setAttribute("aria-current", b.dataset.nav === (page === "library" ? "decks" : page) ? "page" : "false")); 
   else if (page === "decks") app.innerHTML = decksPage(decks);
-  else if (page === "library") app.innerHTML = libraryPage(library, libraryQuery); // ДОДАНО: сторінка бібліотеки
+  else if (page === "library") app.innerHTML = libraryPage(library, libraryQuery); 
   else if (!room) app.innerHTML = entryPage(mode, nick, code, online);
   else
     app.innerHTML =
@@ -94,16 +93,16 @@ function emit(event, data) {
   );
 }
 const act = (data) => emit("action", { turnId: room?.turn?.id, ...data });
-// ЗМІНЕНО: функція api (три позначені рядки). Тепер зрозуміле повідомлення, якщо сервер відповів не JSON (наприклад, перезапускається)
+
 async function api(path, method = "GET", body) {
   const response = await fetch("/api/decks" + path, {
     method,
     headers: { "X-Deck-Key": key, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const result = response.status === 204 ? null : await response.json().catch(() => null); // ЗМІНЕНО (було: await response.json())
-  if (!response.ok || (result === null && response.status !== 204)) // ЗМІНЕНО (було: if (!response.ok))
-    throw new Error(result?.error || "Сервер тимчасово недоступний. Спробуй за хвилину."); // ЗМІНЕНО (було: "Не вдалося зберегти колоду.")
+  const result = response.status === 204 ? null : await response.json().catch(() => null); 
+  if (!response.ok || (result === null && response.status !== 204)) 
+    throw new Error(result?.error || "Сервер тимчасово недоступний. Спробуй за хвилину."); 
   return result;
 }
 async function loadDecks() {
@@ -255,8 +254,8 @@ document.addEventListener("click", async (e) => {
       return closeModal();
     }
     if ("deckNew" in d) return showEditor(null);
-    if ("deckAi" in d) return modal(aiDeckEditor()); // ДОДАНО: відкрити вікно «Колода за допомогою ШІ»
-    // ▼ ДОДАНО: поділитися колодою з усіма гравцями або прибрати зі спільних
+    if ("deckAi" in d) return modal(aiDeckEditor()); 
+    
     if (d.deckShare) {
       const share = d.shared === "1";
       await api("/" + d.deckShare + "/share", "POST", { shared: share });
@@ -264,8 +263,8 @@ document.addEventListener("click", async (e) => {
       notify(share ? "Колоду додано до спільних: її бачать усі гравці." : "Колоду прибрано зі спільних.");
       return;
     }
-    // ▲ кінець ДОДАНОГО (deckShare)
-    // ▼ ДОДАНО: бібліотека колод інших людей (відкрити, переглянути слова, додати до своїх)
+    
+    // библиотека колод других людей
     if ("deckLibrary" in d) {
       libraryQuery = "";
       library = await api("/library");
@@ -285,7 +284,7 @@ document.addEventListener("click", async (e) => {
       notify("Колоду додано до твоїх. Вона з’явилась на сторінці «Колоди».");
       return;
     }
-    // ▲ кінець ДОДАНОГО (бібліотека)
+    
     if (d.deckEdit) return showEditor(decks.find((x) => x.id === d.deckEdit));
     if (d.deckView) {
       const deck = decks.find((x) => x.id === d.deckView);
@@ -359,7 +358,7 @@ document.addEventListener("submit", async (e) => {
         notify("Колоду збережено.");
         break;
       }
-      // ▼ ДОДАНО: створення колоди через ШІ за темою
+      // создание колод иишкой за темой
       case "ai-deck-form": {
         notify("Створюємо колоду, це може тривати кілька секунд…");
         await api("/generate", "POST", { theme: values.theme });
@@ -368,15 +367,15 @@ document.addEventListener("submit", async (e) => {
         notify("Колоду створено. Вона з’явилася в списку.");
         break;
       }
-      // ▲ кінець ДОДАНОГО (ai-deck-form)
-      // ▼ ДОДАНО: пошук у бібліотеці колод інших людей
+      
+      // поиск в библиотеке колод других людей
       case "library-form": {
         libraryQuery = values.q.trim();
         library = await api("/library?q=" + encodeURIComponent(libraryQuery));
         render();
         break;
       }
-      // ▲ кінець ДОДАНОГО (library-form)
+     
     }
   } catch (error) {
     notify(error.message);
