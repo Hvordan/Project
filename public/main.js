@@ -1,5 +1,5 @@
 
-import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor } from "./ui.js"; // aidecker 
+import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor, libraryPage } from "./ui.js"; //aiDeckEditor и libraryPage 
 import { lobbyPage, gamePage } from "./room.js";
 
 const app = $("#app"),
@@ -16,6 +16,8 @@ const savedName = "equestria.nickname",
   savedRoom = "equestria.room";
 let room = null,
   decks = [],
+  library = [], // колоды других людей
+  libraryQuery = "", // поиск в библеотке
   page = "play",
   mode = "create",
   code = "",
@@ -45,9 +47,10 @@ function render() {
   renderedContext = context;
   document
     .querySelectorAll("nav [data-nav]")
-    .forEach((b) => b.setAttribute("aria-current", b.dataset.nav === page ? "page" : "false"));
+    .forEach((b) => b.setAttribute("aria-current", b.dataset.nav === (page === "library" ? "decks" : page) ? "page" : "false")); // подсветка "колоды"
   if (page === "rules") app.innerHTML = rulesPage();
   else if (page === "decks") app.innerHTML = decksPage(decks);
+  else if (page === "library") app.innerHTML = libraryPage(library, libraryQuery); // страница библеотке
   else if (!room) app.innerHTML = entryPage(mode, nick, code, online);
   else
     app.innerHTML =
@@ -100,7 +103,7 @@ async function api(path, method = "GET", body) {
   });
   const result = response.status === 204 ? null : await response.json().catch(() => null); 
   if (!response.ok || (result === null && response.status !== 204)) 
-    throw new Error(result?.error || "Сервер тимчасово недоступний. Спробуй за хвилину."); 
+    throw new Error(result?.error || "Сервер тимчасово недоступний. Спробуй за хвилину."); )
   return result;
 }
 async function loadDecks() {
@@ -252,13 +255,34 @@ document.addEventListener("click", async (e) => {
       return closeModal();
     }
     if ("deckNew" in d) return showEditor(null);
-    if ("deckAi" in d) return modal(aiDeckEditor()); // открытие окна генерация через ии
-    // поделиться колодой со всеми или удалить 
+    if ("deckAi" in d) return modal(aiDeckEditor());
+    // открыть колоду для всех 
     if (d.deckShare) {
       const share = d.shared === "1";
       await api("/" + d.deckShare + "/share", "POST", { shared: share });
       await loadDecks();
       notify(share ? "Колоду додано до спільних: її бачать усі гравці." : "Колоду прибрано зі спільних.");
+      return;
+    }
+    
+    // библеотека колод 
+    if ("deckLibrary" in d) {
+      libraryQuery = "";
+      library = await api("/library");
+      return navigate("library");
+    }
+    if (d.libraryView) {
+      const deck = library.find((x) => x.id === d.libraryView);
+      return modal(
+        `<h2>${esc(deck.title)}</h2><p>${deck.words.length} карток</p><div class="chips">${deck.words.map((w) => "<span>" + esc(w.icon) + " " + esc(w.word) + "</span>").join("")}</div>`,
+      );
+    }
+    if (d.librarySave) {
+      await api("/library/" + d.librarySave + "/save", "POST");
+      await loadDecks();
+      library = await api("/library?q=" + encodeURIComponent(libraryQuery));
+      render();
+      notify("Колоду додано до твоїх. Вона з’явилась на сторінці «Колоди».");
       return;
     }
     
@@ -335,7 +359,7 @@ document.addEventListener("submit", async (e) => {
         notify("Колоду збережено.");
         break;
       }
-      
+      // ии колоды за темой
       case "ai-deck-form": {
         notify("Створюємо колоду, це може тривати кілька секунд…");
         await api("/generate", "POST", { theme: values.theme });
@@ -345,6 +369,14 @@ document.addEventListener("submit", async (e) => {
         break;
       }
       
+      // поиск в библиотеке других людей
+      case "library-form": {
+        libraryQuery = values.q.trim();
+        library = await api("/library?q=" + encodeURIComponent(libraryQuery));
+        render();
+        break;
+      }
+    
     }
   } catch (error) {
     notify(error.message);
