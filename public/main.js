@@ -1,4 +1,3 @@
-
 import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor } from "./ui.js"; // aidecker 
 import { lobbyPage, gamePage } from "./room.js";
 
@@ -253,14 +252,6 @@ document.addEventListener("click", async (e) => {
     }
     if ("deckNew" in d) return showEditor(null);
     if ("deckAi" in d) return modal(aiDeckEditor()); // открытие окна генерация через ии
-    // поделиться колодой со всеми или удалить 
-    if (d.deckShare) {
-      const share = d.shared === "1";
-      await api("/" + d.deckShare + "/share", "POST", { shared: share });
-      await loadDecks();
-      notify(share ? "Колоду додано до спільних: її бачать усі гравці." : "Колоду прибрано зі спільних.");
-      return;
-    }
     
     if (d.deckEdit) return showEditor(decks.find((x) => x.id === d.deckEdit));
     if (d.deckView) {
