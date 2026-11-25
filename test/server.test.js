@@ -141,7 +141,7 @@ test("Author decks support create, edit, select, delete and room snapshots", asy
   const created = await call("", "POST", body);
   assert.equal(created.status, 201);
   const deck = await created.json();
-  assert.equal((await (await call("", "GET", null, other)).json()).length, 3);
+  assert.equal((await (await call("", "GET", null, other)).json()).length, 4);
   assert.equal((await call("/" + deck.id, "PUT", body, other)).status, 400);
   assert.equal((await call("/" + deck.id, "PUT", { ...body, title: "Моя колода" })).status, 200);
   good(await author.send("createRoom", { name: "Автор" }));
@@ -154,4 +154,5 @@ test("Author decks support create, edit, select, delete and room snapshots", asy
   good(await author.act({ type: "chat", text: "Перевірка" }));
   assert.equal(author.state.deck.count, 30);
   assert.equal((await (await call("")).json()).length, 3);
+});
 });
