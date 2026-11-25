@@ -1,4 +1,3 @@
-
 import express from "express";
 import { createServer } from "node:http";
 import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
@@ -7,6 +6,7 @@ import { Server } from "socket.io";
 import { builtins } from "./decks.js";
 import { openStore } from "./store.js";
 import { generateDeck } from "./ai.js"; // ии колоды 
+import { remoteEnabled, remoteInit, remoteAll, remoteSave, remoteSaveMany, remoteDelete } from "./remote.js";
 import {
   applyAction,
   backToLobby,
@@ -28,6 +28,7 @@ function roomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 5 }, () => alphabet[randomInt(alphabet.length)]).join("");
 }
+
 export function createGameServer(filename) {
   const app = express();
   const http = createServer(app);
@@ -35,12 +36,45 @@ export function createGameServer(filename) {
   const store = openStore(filename);
   const members = new Map(); // Room code → player id → currently connected socket.
   const lastGenerated = new Map(); // время генерации 
+
+  // Ошибка Turso не должна ломать игру
+  async function sync(task) {
+    if (!remoteEnabled()) return;
+    try {
+      await task();
+    } catch (err) {
+      console.error("Turso:", err.message);
+    }
+  }
+  const persist = (id) => sync(() => remoteSave(store.deckRow(id)));
+
+  // Восстановление колод из Turso при старте
+  const ready = (async () => {
+    if (!remoteEnabled()) return;
+    try {
+      await remoteInit();
+      const remote = await remoteAll();
+      store.importDecks(remote);
+      const known = new Set(remote.map((r) => r.id));
+      const missing = store.allDeckRows().filter((r) => !known.has(r.id));
+      if (missing.length) await remoteSaveMany(missing);
+      console.log("Колоди з Turso відновлено: " + remote.length);
+    } catch (err) {
+      console.error("Не вдалося відновити колоди з Turso:", err.message);
+    }
+  })();
+
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
+
   app.get("/api/decks", (req, res) => res.json(store.decks(ownerHash(req.get("X-Deck-Key")))));
-  app.post("/api/decks", (req, res) =>
-    res.status(201).json(store.writeDeck(null, ownerHash(req.get("X-Deck-Key")), req.body || {})),
-  );
+
+  app.post("/api/decks", async (req, res) => {
+    const deck = store.writeDeck(null, ownerHash(req.get("X-Deck-Key")), req.body || {});
+    await persist(deck.id);
+    res.status(201).json(deck);
+  });
+
   // создание тематических колод через ии
   app.post("/api/decks/generate", async (req, res, next) => {
     try {
@@ -56,30 +90,32 @@ export function createGameServer(filename) {
         console.error("Генерація колоди:", err.message);
         throw new Error("Не вдалося створити колоду. Спробуй іншу тему або пізніше.");
       }
-      res.status(201).json(store.writeDeck(null, owner, deck));
+      const saved = store.writeDeck(null, owner, deck);
+      await persist(saved.id);
+      res.status(201).json(saved);
     } catch (err) {
       next(err);
     }
   });
-  
-  // зашерить колоду со всеми 
-  app.post("/api/decks/:id/share", (req, res) => {
-    store.shareDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body?.shared);
-    res.sendStatus(204);
+
+  app.put("/api/decks/:id", async (req, res) => {
+    const deck = store.writeDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body || {});
+    await persist(deck.id);
+    res.json(deck);
   });
- 
-  app.put("/api/decks/:id", (req, res) =>
-    res.json(store.writeDeck(req.params.id, ownerHash(req.get("X-Deck-Key")), req.body || {})),
-  );
-  app.delete("/api/decks/:id", (req, res) => {
+
+  app.delete("/api/decks/:id", async (req, res) => {
     store.deleteDeck(req.params.id, ownerHash(req.get("X-Deck-Key")));
+    await sync(() => remoteDelete(req.params.id));
     res.sendStatus(204);
   });
+
   app.use(express.static(publicFolder));
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
     res.status(400).json({ error: err.message });
   });
+
   function broadcast(room) {
     const sockets = members.get(room.code);
     if (!sockets) return;
@@ -110,6 +146,7 @@ export function createGameServer(filename) {
     if (expireTurn(room)) store.save(room);
     broadcast(room);
   }
+
   io.on("connection", (socket) => {
     function on(name, handler) {
       socket.on(name, (payload, reply) => {
@@ -201,6 +238,7 @@ export function createGameServer(filename) {
     });
     socket.on("disconnect", () => detach(socket));
   });
+
   const clock = setInterval(() => {
     for (const code of members.keys()) {
       const room = store.room(code);
@@ -211,8 +249,10 @@ export function createGameServer(filename) {
     }
   }, 1000);
   clock.unref();
+
   return {
     http,
+    ready,
     close() {
       clearInterval(clock);
       return new Promise((resolve) =>
