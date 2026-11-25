@@ -1,4 +1,3 @@
-// server/ai.js —генерация колоды и обложки с помощью гемини и так же должно автоматически менять модель 
 
 const clean = (name) => String(name).trim().replace(/^models\//, "");
 const MODELS = [
@@ -9,7 +8,7 @@ const MODELS = [
   .filter((name, i, all) => name && all.indexOf(name) === i);
 const WORDS_PER_DECK = 48;
 
-// один запрос на гемини и изменение модели если она не ответила
+// Один запрос к гемини с переходом на другую модель 
 async function callGemini(payload, { timeout = 35000 } = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY не задано");
@@ -40,13 +39,12 @@ async function callGemini(payload, { timeout = 35000 } = {}) {
   throw lastError || new Error("Жодна модель не відповіла");
 }
 
-// улучшенный запрос слов, чтобы колода было узко привязано к теме
-// (была: простая просьба «дай 48 разных украинских существительных по этой теме»).
-// изменил 1) модель сначала называет подгруппы темы (поле categories) и распределяет слова между ними;
+// улучшенный запрос слов, чтобы колоды были узко привязаные к теме
+// 1) модель сначала называет подгруппы темы (поле categories) и распределяет слова между ними;
 // 2) запрещены общие слова, которые подошли бы к какой-либо теме; 3) нужны узнаваемые для темы
 // имена, названия и термины; 4) запрет придумывать несуществующие названия; 5) propertyOrdering заставляет модель
 // сначала составить подгруппы, а потом слова.
-const WORDS_THINKING = process.env.GEMINI_WORDS_THINKING || "low"; // тут в теории можно поменять на medium если нужна более точная генерация 
+const WORDS_THINKING = process.env.GEMINI_WORDS_THINKING || "low"; // для более сложного можно поставить medium
 
 function wordsPayload(topic) {
   return {
@@ -95,7 +93,7 @@ function wordsPayload(topic) {
       responseSchema: {
         type: "OBJECT",
         properties: {
-          categories: { type: "ARRAY", items: { type: "STRING" } }, // подгруппы 
+          categories: { type: "ARRAY", items: { type: "STRING" } }, // подгруппы темы
           title: { type: "STRING" },
           description: { type: "STRING" },
           words: {
@@ -108,7 +106,7 @@ function wordsPayload(topic) {
           },
         },
         required: ["categories", "title", "description", "words"],
-        propertyOrdering: ["categories", "title", "description", "words"], // генерирует подгруппу а потом слова для точности 
+        propertyOrdering: ["categories", "title", "description", "words"], // подгруппы потом слова для точности тем 
       },
     },
   };
@@ -164,7 +162,7 @@ function coverPayload(topic) {
   };
 }
 
-// если обложка не сгенерирована будет одна из трех базовых 
+
 function drawCover(topic) {
   let timer;
   const limit = new Promise((resolve) => {
@@ -187,7 +185,7 @@ export async function generateDeck(theme) {
   const topic = String(theme || "").trim().slice(0, 60);
   if (!topic) throw new Error("Порожня тема");
 
-  // слова и обложка создаются одновременно 
+  // слова и обложка создаются одновременно
   const [parsed, cover] = await Promise.all([callGemini(wordsPayload(topic)), drawCover(topic)]);
 
   const seen = new Set();
@@ -207,7 +205,7 @@ export async function generateDeck(theme) {
     id: "ai-" + Date.now().toString(36),
     title: String(parsed.title || topic).slice(0, 40),
     description: String(parsed.description || "").slice(0, 120),
-    cover, 
+    cover, //проверка в store.js
     words: words.slice(0, WORDS_PER_DECK),
   };
 }
