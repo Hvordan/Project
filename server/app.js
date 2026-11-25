@@ -34,6 +34,14 @@ export function createGameServer(filename) {
   const io = new Server(http, { maxHttpBufferSize: 16_384 });
   const store = openStore(filename);
   // "востановление" колод 
+    const ready = store
+    .restore()
+    .then((info) => {
+      if (info) console.log("Колоди з Turso: відновлено " + info.restored + ", вивантажено " + info.uploaded);
+    //лог 
+      else console.log("Turso ВИМКНЕНО: не задано TURSO_DATABASE_URL або TURSO_AUTH_TOKEN. Колоди зберігаються лише на диску сервера й зникнуть при перезапуску.");
+    })
+    .catch((err) => console.error("Відновлення колод із Turso:", err.message));
   const ready = store
     .restore()
     .then((info) => {
