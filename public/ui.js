@@ -115,7 +115,6 @@ export function rulesPage() {
     )
     .join("")}</div>`;
 }
-
 function coverSvg(shapes) {
   const paths = shapes
     .map((shape) => {
@@ -134,13 +133,27 @@ function coverSvg(shapes) {
 }
 
 export function decksPage(decks) {
-  return `<div class="page-head split"><div><h1>Колоди</h1><p>Обери набір слів для наступної партії або напиши власний.</p></div>${/* : кнопка создать через ии */ ""}<div class="row"><button class="secondary" data-deck-ai>Створити через ШІ</button><button class="primary" data-deck-new>Створити колоду</button></div></div>
-  <div class="deck-grid">${decks.map((d, i) => `<article class="panel deck"><div class="deck-cover tone-${i % 3}"><span>${/* обложка от ии */ ""}${d.cover ? coverSvg(d.cover) : ["✦", "❀", "☾"][i % 3]}</span></div><div class="deck-body"><small>${/* изминение подписи */ ""}${d.custom ? (d.shared ? "Твоя колода · спільна" : "Твоя колода") : d.shared ? "Спільна колода" : "Колода Еквестрії"} · ${d.words.length} карток</small><h2>${esc(d.title)}</h2><p>${esc(d.description)}</p><button class="secondary" data-deck-view="${esc(d.id)}">Переглянути слова</button>${d.custom ? ` <button class="text-btn" data-deck-edit="${esc(d.id)}">Редагувати</button> ${/* ДОДАНО: кнопка «Поділитися з усіма» / «Прибрати зі спільних» */ ""}<button class="text-btn" data-deck-share="${esc(d.id)}" data-shared="${d.shared ? 0 : 1}">${d.shared ? "Прибрати зі спільних" : "Поділитися з усіма"}</button>` : ""}</div></article>`).join("")}</div>`;
+  return `<div class="page-head split"><div><h1>Колоди</h1><p>Обери набір слів для наступної партії або напиши власний.</p></div>${/* ДОДАНО: кнопка «Створити через ШІ» у шапці (було: лише кнопка «Створити колоду» без обгортки row) */ ""}<div class="row">${/* ДОДАНО: кнопка «Колоди інших людей» (відкриває бібліотеку) */ ""}<button class="secondary" data-deck-library>Колоди інших людей</button><button class="secondary" data-deck-ai>Створити через ШІ</button><button class="primary" data-deck-new>Створити колоду</button></div></div>
+  <div class="deck-grid">${decks.map((d, i) => `<article class="panel deck"><div class="deck-cover tone-${i % 3}"><span>${/* ДОДАНО: значок-обкладинка від ШІ (було: лише ["✦", "❀", "☾"][i % 3]) */ ""}${d.cover ? coverSvg(d.cover) : ["✦", "❀", "☾"][i % 3]}</span></div><div class="deck-body"><small>${/* ЗМІНЕНО: підпис враховує спільні колоди (було: d.custom ? "Твоя колода" : "Колода Еквестрії") */ ""}${d.custom ? (d.shared ? "Твоя колода · спільна" : "Твоя колода") : d.shared ? "Спільна колода" : "Колода Еквестрії"} · ${d.words.length} карток</small><h2>${esc(d.title)}</h2><p>${esc(d.description)}</p><button class="secondary" data-deck-view="${esc(d.id)}">Переглянути слова</button>${d.custom ? ` <button class="text-btn" data-deck-edit="${esc(d.id)}">Редагувати</button> ${/* ДОДАНО: кнопка «Поділитися з усіма» / «Прибрати зі спільних» */ ""}<button class="text-btn" data-deck-share="${esc(d.id)}" data-shared="${d.shared ? 0 : 1}">${d.shared ? "Прибрати зі спільних" : "Поділитися з усіма"}</button>` : ""}</div></article>`).join("")}</div>`;
 }
 export function deckEditor(d) {
   return `<h2>${d ? "Редагувати колоду" : "Нова колода"}</h2><form id="deck-form" data-id="${esc(d?.id)}"><label>Назва колоди<input name="title" maxlength="45" required value="${esc(d?.title)}"></label><label>Слова, по одному на рядок<textarea name="words" rows="10" required placeholder="Місяць&#10;Кристал&#10;Веселка">${esc(d?.words.map((x) => x.word).join("\n"))}</textarea></label><small id="word-count"></small><p class="note">Від 25 до 160 різних слів. Колодою керує автор у цьому браузері.</p><div class="row"><button class="primary">Зберегти</button>${d ? `<button type="button" class="text-btn danger" data-deck-delete="${esc(d.id)}">Видалити</button>` : ""}</div></form>`;
 }
-// создание колоды иишкой
+// создание колоды с помощью ии
 export function aiDeckEditor() {
   return `<h2>Колода за допомогою ШІ</h2><form id="ai-deck-form"><label>Тема<input name="theme" maxlength="60" required placeholder="Наприклад, море"></label><p class="note">Створення займає кілька секунд. Не частіше, ніж раз на 30 секунд.</p><button class="primary full">Створити</button></form>`;
+}
+
+
+// страница колоды от других людей
+export function libraryPage(decks, query) {
+  const cards = decks
+    .map(
+      (d, i) =>
+        `<article class="panel deck"><div class="deck-cover tone-${i % 3}"><span>${d.cover ? coverSvg(d.cover) : ["✦", "❀", "☾"][i % 3]}</span></div><div class="deck-body"><small>Спільна колода · ${d.words.length} карток</small><h2>${esc(d.title)}</h2><p>${esc(d.description)}</p><button class="secondary" data-library-view="${esc(d.id)}">Переглянути слова</button> ${d.saved ? "<small>Вже у твоїх колодах</small>" : `<button class="primary" data-library-save="${esc(d.id)}">Додати до моїх</button>`}</div></article>`,
+    )
+    .join("");
+  return `<div class="page-head split"><div><h1>Колоди інших людей</h1><p>Колоди, якими поділилися інші гравці. Додай собі ті, що сподобались: вони з’являться на сторінці «Колоди».</p></div><button class="secondary" data-nav="decks">← До моїх колод</button></div>
+  <form id="library-form" class="inline"><input name="q" aria-label="Пошук колод" maxlength="60" placeholder="Пошук за назвою…" value="${esc(query)}"><button class="secondary">Шукати</button></form>
+  <div class="deck-grid">${cards || '<p class="muted">Поки що тут порожньо. Поділись своєю колодою кнопкою «Поділитися з усіма», і вона з’явиться в бібліотеці.</p>'}</div>`;
 }
