@@ -1,6 +1,7 @@
 
 import { $, esc, notify, modal, closeModal, entryPage, rulesPage, decksPage, deckEditor, aiDeckEditor, libraryPage } from "./ui.js"; // добавлено aiDeckEditor и libraryPage 
 import { lobbyPage, gamePage } from "./room.js";
+import "./pony.js";
 
 const app = $("#app"),
   socket = window.io({ autoConnect: false });
