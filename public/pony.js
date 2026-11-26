@@ -1,12 +1,12 @@
 
-const PONY_SRC = "/art/pony.png"; 
-const HIDE_AFTER_MS = 3800; 
-const SAY_DELAY_MS = 450; 
+const PONY_SRC = "/art/pony.png"; //путь к картинке
+const HIDE_AFTER_MS = 3800; // сколько поняшка весит 
+const SAY_DELAY_MS = 450;  // облачко с фразой 
 const BRAND_TEXT = "Еквестрія"; 
 const NAV_TEXTS = ["Грати", "Колоди", "Правила"]; 
 const HEADER_MAX_BOTTOM = 90; 
 
-
+//все реплики можно будет еще чет добавить 
 const LINES = [
   "Я бачила твій хід… Цікаво.",
   "Знаки не брешуть. Шукай уважніше.",
@@ -17,7 +17,7 @@ const LINES = [
   "Зірка впала. Загадай слово.",
   "Гадаєш, я просто проходила повз?",
 ];
-
+// звездочки 
 const SPARKS = [
   { x: 2, y: 6, s: 22, c: "#ffd23f", d: 0.0 },
   { x: 74, y: 2, s: 16, c: "#ff9a3c", d: 0.5 },
@@ -155,11 +155,11 @@ function showPony() {
   clearTimeout(hideTimer);
   clearTimeout(sayTimer);
   if (!scene.classList.contains("show")) {
-    void scene.offsetWidth; 
+    void scene.offsetWidth; // облачко с текстом вылазит каждое нажатие 
     scene.classList.add("show");
-    sayTimer = setTimeout(sayLine, SAY_DELAY_MS); 
+    sayTimer = setTimeout(sayLine, SAY_DELAY_MS); // облачко вылазит когда пони уже полностью выехала 
   } else {
-    sayLine(); 
+    sayLine(); // новая реплика каждый клик и обновление таймера
   }
   hideTimer = setTimeout(() => {
     bubble.classList.remove("say");
