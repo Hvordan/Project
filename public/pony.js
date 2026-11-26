@@ -1,22 +1,12 @@
-// ▼ ДОДАНО: НОВИЙ ФАЙЛ public/pony.js. У вашому оригінальному коді його не було, тому весь файл — нове.
-// Що він робить: при кліку на логотип «Еквестрія» в шапці з правого нижнього кута екрана виїжджає поняшка
-// Fallenstar: за нею спалахує тепле сяйво, довкола мерехтять зірочки, а в хмаринці з’являється випадкова
-// репліка. За кілька секунд усе ховається назад. Стилі файл додає собі сам, тому style.css змінювати не треба.
-//
-// ЩО МОЖНА ЗМІНИТИ ПІД СЕБЕ (усе нижче, у цьому ж файлі):
-//   PONY_SRC       шлях до картинки (за замовчуванням public/art/pony.png)
-//   HIDE_AFTER_MS  скільки поняшка лишається на екрані
-//   LINES          репліки: додавайте, видаляйте чи міняйте рядки
-//   SPARKS         розташування, розмір і колір зірочок
 
-const PONY_SRC = "/art/pony.png"; // шлях до картинки
-const HIDE_AFTER_MS = 3800; // скільки поняшка лишається на екрані (мс)
-const SAY_DELAY_MS = 450; // через скільки після виїзду з’являється хмаринка (мс)
-const BRAND_TEXT = "Еквестрія"; // текст логотипа, за яким його шукаємо
-const NAV_TEXTS = ["Грати", "Колоди", "Правила"]; // підписи меню (щоб клік по меню не спрацьовував)
-const HEADER_MAX_BOTTOM = 90; // логотип має лежати у верхніх 90 px екрана
+const PONY_SRC = "/art/pony.png"; 
+const HIDE_AFTER_MS = 3800; 
+const SAY_DELAY_MS = 450; 
+const BRAND_TEXT = "Еквестрія"; 
+const NAV_TEXTS = ["Грати", "Колоди", "Правила"]; 
+const HEADER_MAX_BOTTOM = 90; 
 
-// Репліки (кожен раз вибирається випадкова, але не та сама двічі поспіль)
+
 const LINES = [
   "Я бачила твій хід… Цікаво.",
   "Знаки не брешуть. Шукай уважніше.",
@@ -28,7 +18,6 @@ const LINES = [
   "Гадаєш, я просто проходила повз?",
 ];
 
-// Зірочки: x, y (у % від розміру картинки), розмір (px), колір, затримка анімації (с)
 const SPARKS = [
   { x: 2, y: 6, s: 22, c: "#ffd23f", d: 0.0 },
   { x: 74, y: 2, s: 16, c: "#ff9a3c", d: 0.5 },
@@ -43,7 +32,7 @@ const SPARKS = [
 let scene, bubble, hideTimer, sayTimer, lastLine = -1;
 let broken = false;
 
-// Заздалегідь вантажимо картинку й помічаємо, якщо файлу немає.
+
 if (typeof Image !== "undefined") {
   const probe = new Image();
   probe.onerror = () => {
@@ -53,8 +42,7 @@ if (typeof Image !== "undefined") {
   probe.src = PONY_SRC;
 }
 
-// Чи клік потрапив у логотип: піднімаємося від елемента вгору, поки не знайдемо блок із текстом логотипа.
-// Якщо цей блок містить ще й пункти меню, значить, це вся шапка, а не логотип, і ми не спрацьовуємо.
+
 function isBrandClick(target) {
   let el = target;
   for (let depth = 0; el && depth < 6; depth++, el = el.parentElement) {
@@ -157,7 +145,7 @@ function pickLine() {
 function sayLine() {
   bubble.classList.remove("say");
   bubble.textContent = pickLine();
-  void bubble.offsetWidth; // щоб хмаринка «вискакувала» знову при повторному кліку
+  void bubble.offsetWidth; 
   bubble.classList.add("say");
 }
 
@@ -167,11 +155,11 @@ function showPony() {
   clearTimeout(hideTimer);
   clearTimeout(sayTimer);
   if (!scene.classList.contains("show")) {
-    void scene.offsetWidth; // щоб анімація виїзду точно запустилась
+    void scene.offsetWidth; 
     scene.classList.add("show");
-    sayTimer = setTimeout(sayLine, SAY_DELAY_MS); // хмаринка з’являється, коли поняшка вже виїхала
+    sayTimer = setTimeout(sayLine, SAY_DELAY_MS); 
   } else {
-    sayLine(); // повторний клік: нова репліка, а час на екрані відлічується заново
+    sayLine(); 
   }
   hideTimer = setTimeout(() => {
     bubble.classList.remove("say");
@@ -182,4 +170,4 @@ function showPony() {
 document.addEventListener("click", (e) => {
   if (isBrandClick(e.target)) showPony();
 });
-// ▲ кінець ДОДАНОГО (pony.js)
+
